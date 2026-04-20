@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GTM Radar</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    /* ── Reset & Base ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:          #02020a;
+      --surface:     #05050f;
+      --card:        #07071a;
+      --card-hover:  #0a0a20;
+      --border:      #141430;
+      --border-hover:rgba(0,212,255,.35);
+      --primary:     #00d4ff;
+      --primary-dim: rgba(0,212,255,.08);
+      --primary-glow:rgba(0,212,255,.18);
+      --accent:      #a855f7;
+      --accent-glow: rgba(168,85,247,.18);
+      --green:       #00ff88;
+      --text:        #dce8ff;
+      --text-2:      #7a8fbb;
+      --muted:       #3a4468;
+      --subtle:      #0f1030;
+    }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--muted); border-radius: 99px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--primary); }
+
+    /* ── Dot-grid background ── */
+    body {
+      background-color: var(--bg);
+      background-image: radial-gradient(circle, rgba(0,212,255,.06) 1px, transparent 1px);
+      background-size: 28px 28px;
+      color: var(--text);
+      font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+      min-height: 100vh;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: inherit; text-decoration: none; }
+    button { cursor: pointer; border: none; background: none; color: inherit; font: inherit; }
+
+    /* ── Keyframes ── */
+    @keyframes radar-spin {
+      from { transform: rotate(0deg); }
+      to   { transform: rotate(360deg); }
+    }
+    @keyframes pulse-ring {
+      0%   { box-shadow: 0 0 0 0 rgba(0,212,255,.45); }
+      70%  { box-shadow: 0 0 0 8px rgba(0,212,255,0); }
+      100% { box-shadow: 0 0 0 0 rgba(0,212,255,0); }
+    }
+    @keyframes scan-line {
+      0%   { opacity: 0; top: 0; }
+      10%  { opacity: 1; }
+      90%  { opacity: 1; }
+      100% { opacity: 0; top: 100%; }
+    }
+    @keyframes flicker {
+      0%,100% { opacity: 1; } 92% { opacity: 1; } 93% { opacity: .6; } 94% { opacity: 1; }
+    }
+
+    /* ── Header ── */
+    header {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(2,2,10,.9);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+      display: flex; align-items: center; gap: 16px;
+      height: 56px;
+      box-shadow: 0 1px 0 rgba(0,212,255,.08), 0 4px 32px rgba(0,0,0,.4);
+    }
+    /* subtle scan line on header */
+    header::after {
+      content: ''; pointer-events: none;
+      position: absolute; left: 0; right: 0; height: 1px;
+      background: linear-gradient(90deg, transparent, var(--primary), transparent);
+      bottom: -1px; opacity: .4;
+    }
+
+    .logo {
+      font-weight: 700; font-size: 15px; letter-spacing: .04em;
+      color: var(--text); white-space: nowrap;
+      display: flex; align-items: center; gap: 10px;
+      text-transform: uppercase;
+      animation: flicker 8s infinite;
+    }
+    .logo-icon {
+      width: 30px; height: 30px; border-radius: 50%;
+      border: 1.5px solid var(--primary);
+      display: flex; align-items: center; justify-content: center;
+      position: relative; overflow: hidden;
+      box-shadow: 0 0 12px rgba(0,212,255,.4), inset 0 0 8px rgba(0,212,255,.1);
+      animation: pulse-ring 3s ease-out infinite;
+      flex-shrink: 0;
+    }
+    .logo-icon::before {
+      content: '';
+      position: absolute;
+      width: 200%; height: 2px;
+      background: linear-gradient(90deg, transparent, var(--primary), transparent);
+      top: 50%; left: -50%;
+      transform-origin: center center;
+      animation: radar-spin 3s linear infinite;
+    }
+    .logo-icon svg { color: var(--primary); position: relative; z-index: 1; }
+    .logo-text { color: var(--primary); }
+    .logo-sub { color: var(--text-2); font-weight: 500; }
+
+    .search-wrap { flex: 1; max-width: 360px; position: relative; }
+    .search-wrap svg {
+      position: absolute; left: 11px; top: 50%; transform: translateY(-50%);
+      color: var(--muted); pointer-events: none;
+    }
+    .search-wrap input {
+      width: 100%; padding: 7px 12px 7px 34px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 4px; color: var(--text); font-size: 12px;
+      font-family: 'JetBrains Mono', monospace; outline: none;
+      transition: border-color .2s, box-shadow .2s;
+      letter-spacing: .02em;
+    }
+    .search-wrap input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--primary-glow), 0 0 16px rgba(0,212,255,.1);
+    }
+    .search-wrap input::placeholder { color: var(--muted); font-family: 'JetBrains Mono', monospace; }
+
+    .header-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+    .pill-btn {
+      display: flex; align-items: center; gap: 6px;
+      padding: 6px 12px; border-radius: 4px; font-size: 11px; font-weight: 600;
+      border: 1px solid var(--border); background: var(--surface);
+      color: var(--text-2); transition: all .2s; letter-spacing: .07em;
+      text-transform: uppercase; font-family: 'JetBrains Mono', monospace;
+    }
+    .pill-btn:hover { border-color: rgba(0,212,255,.3); color: var(--text); }
+    .pill-btn.active {
+      background: var(--primary-dim); border-color: rgba(0,212,255,.5);
+      color: var(--primary);
+      box-shadow: 0 0 12px rgba(0,212,255,.15), inset 0 0 8px rgba(0,212,255,.05);
+    }
+    #postCount {
+      font-size: 11px; color: var(--muted); font-family: 'JetBrains Mono', monospace;
+      letter-spacing: .04em;
+    }
+
+    /* ── App body ── */
+    .app-body { display: flex; align-items: flex-start; }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      position: sticky; top: 56px;
+      width: 200px; flex-shrink: 0;
+      height: calc(100vh - 56px);
+      overflow-y: auto;
+      background: rgba(5,5,15,.8);
+      border-right: 1px solid var(--border);
+      padding: 18px 10px;
+      display: flex; flex-direction: column; gap: 2px;
+    }
+    .sidebar-label {
+      font-size: 9px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: .15em; color: var(--muted);
+      padding: 0 10px; margin-bottom: 10px; margin-top: 4px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .sidebar .tab {
+      width: 100%; text-align: left;
+      padding: 7px 10px; border-radius: 3px; font-size: 12px;
+      font-weight: 500; border: 1px solid transparent; color: var(--text-2);
+      display: flex; align-items: center; gap: 9px;
+      transition: all .15s; letter-spacing: .01em;
+    }
+    .sidebar .tab:hover { background: var(--card); color: var(--text); border-color: var(--border); }
+    .sidebar .tab.active {
+      background: var(--primary-dim);
+      color: var(--primary);
+      border-color: rgba(0,212,255,.25);
+      box-shadow: inset 2px 0 0 var(--primary);
+    }
+    .tab-dot {
+      width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
+      box-shadow: 0 0 5px currentColor;
+    }
+
+    /* ── Main ── */
+    .main-wrap {
+      flex: 1; min-width: 0;
+      max-width: 760px;
+      padding: 24px 28px;
+    }
+
+    /* ── Filter bar ── */
+    .filter-bar {
+      display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+      margin-bottom: 20px;
+    }
+    .filter-label {
+      font-size: 9px; color: var(--muted); font-weight: 600;
+      text-transform: uppercase; letter-spacing: .12em; margin-right: 2px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .date-controls { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+    .date-input {
+      padding: 5px 10px; background: var(--surface); border: 1px solid var(--border);
+      border-radius: 4px; color: var(--text); font-size: 11px;
+      font-family: 'JetBrains Mono', monospace;
+      outline: none; cursor: pointer; transition: border-color .2s, box-shadow .2s;
+      letter-spacing: .03em;
+    }
+    .date-input:focus { border-color: var(--primary); box-shadow: 0 0 8px var(--primary-glow); }
+    .date-input::-webkit-calendar-picker-indicator { filter: invert(0.4) sepia(1) saturate(3) hue-rotate(170deg); cursor: pointer; }
+    .sort-wrap { display: flex; align-items: center; gap: 6px; }
+    .sort-select {
+      padding: 5px 10px; background: var(--surface); border: 1px solid var(--border);
+      border-radius: 4px; color: var(--text); font-size: 11px;
+      font-family: 'JetBrains Mono', monospace;
+      outline: none; cursor: pointer; transition: border-color .2s;
+      letter-spacing: .03em;
+    }
+    .sort-select:focus { border-color: var(--primary); }
+
+    /* ── Stats bar ── */
+    .stats-bar {
+      display: flex; gap: 0; margin-bottom: 24px;
+      background: var(--surface); border-radius: 4px;
+      border: 1px solid var(--border);
+      overflow: hidden;
+      position: relative;
+    }
+    .stats-bar::before {
+      content: ''; pointer-events: none;
+      position: absolute; top: 0; left: 0; right: 0; height: 1px;
+      background: linear-gradient(90deg, transparent 0%, var(--primary) 50%, transparent 100%);
+      opacity: .4;
+    }
+    .stat {
+      flex: 1; display: flex; flex-direction: column; gap: 4px;
+      padding: 16px 20px;
+      border-right: 1px solid var(--border);
+    }
+    .stat:last-child { border-right: none; }
+    .stat-val {
+      font-size: 24px; font-weight: 700; color: var(--primary);
+      letter-spacing: -.5px; font-family: 'JetBrains Mono', monospace;
+      text-shadow: 0 0 16px rgba(0,212,255,.4);
+    }
+    .stat-key {
+      font-size: 9px; color: var(--muted); text-transform: uppercase;
+      letter-spacing: .12em; font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* ── Feed ── */
+    .feed { display: flex; flex-direction: column; gap: 12px; }
+
+    /* corner brackets on cards */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 4px; padding: 18px 20px;
+      transition: border-color .25s, background .25s, box-shadow .25s;
+      position: relative;
+    }
+    .card::before, .card::after,
+    .card .corner-br, .card .corner-tl-inner {
+      content: ''; position: absolute;
+      width: 10px; height: 10px; pointer-events: none;
+    }
+    .card::before {
+      top: -1px; right: -1px;
+      border-top: 2px solid var(--border);
+      border-right: 2px solid var(--border);
+    }
+    .card::after {
+      bottom: -1px; left: -1px;
+      border-bottom: 2px solid var(--border);
+      border-left: 2px solid var(--border);
+    }
+    .card:hover {
+      border-color: rgba(0,212,255,.2);
+      background: var(--card-hover);
+      box-shadow: 0 0 0 1px rgba(0,212,255,.1), 0 4px 32px rgba(0,0,0,.5), 0 0 24px rgba(0,212,255,.06);
+    }
+    .card:hover::before { border-color: var(--primary); }
+    .card:hover::after  { border-color: var(--primary); }
+
+    .card-header { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 13px; }
+    .avatar {
+      width: 38px; height: 38px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 13px; flex-shrink: 0; color: #fff;
+      border: 1.5px solid rgba(255,255,255,.15);
+    }
+    .person-info { flex: 1; min-width: 0; }
+    .person-name {
+      font-weight: 600; font-size: 14px; color: var(--text);
+      display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    }
+    .person-meta { font-size: 11px; color: var(--text-2); margin-top: 2px; letter-spacing: .01em; }
+    .badge {
+      display: inline-flex; align-items: center;
+      padding: 2px 8px; border-radius: 2px; font-size: 9px; font-weight: 700;
+      letter-spacing: .08em; flex-shrink: 0; text-transform: uppercase;
+      font-family: 'JetBrains Mono', monospace;
+      background: transparent !important;
+      border: 1px solid;
+    }
+    .card-date {
+      font-size: 10px; color: var(--muted); white-space: nowrap; margin-top: 2px;
+      font-family: 'JetBrains Mono', monospace; letter-spacing: .04em;
+    }
+
+    .card-body {
+      font-size: 14px; color: var(--text-2); line-height: 1.75;
+      margin-bottom: 14px; white-space: pre-line;
+    }
+    .card-body .read-more {
+      color: var(--primary); font-size: 12px; cursor: pointer;
+      display: inline; font-weight: 600; letter-spacing: .04em;
+    }
+    .card-body .read-more:hover { text-shadow: 0 0 8px var(--primary); }
+
+    .card-footer {
+      display: flex; align-items: center; gap: 18px; padding-top: 12px;
+      border-top: 1px solid var(--border);
+    }
+    .metric {
+      display: flex; align-items: center; gap: 5px;
+      font-size: 11px; color: var(--muted);
+      font-family: 'JetBrains Mono', monospace; letter-spacing: .02em;
+    }
+    .metric svg { flex-shrink: 0; }
+    .metric strong { color: var(--text-2); font-weight: 600; }
+    .card-link {
+      margin-left: auto; font-size: 10px; color: var(--primary);
+      display: flex; align-items: center; gap: 4px; font-weight: 600;
+      opacity: .6; transition: opacity .15s, text-shadow .15s;
+      font-family: 'JetBrains Mono', monospace; letter-spacing: .06em;
+      text-transform: uppercase;
+    }
+    .card-link:hover { opacity: 1; text-shadow: 0 0 8px var(--primary); }
+
+    /* ── Empty state ── */
+    .empty { text-align: center; padding: 80px 20px; color: var(--muted); }
+    .empty svg { margin-bottom: 16px; opacity: .2; }
+    .empty p { font-size: 13px; font-family: 'JetBrains Mono', monospace; letter-spacing: .04em; }
+
+    /* ── Config banner ── */
+    .config-banner {
+      display: flex; align-items: center; gap: 12px;
+      background: rgba(0,212,255,.04); border: 1px solid rgba(0,212,255,.15);
+      border-radius: 4px; padding: 12px 16px; margin-bottom: 20px;
+      font-size: 12px; color: rgba(0,212,255,.7);
+    }
+    .config-banner a { color: var(--primary); text-decoration: underline; }
+
+    /* ── Responsive ── */
+    @media (max-width: 768px) {
+      .sidebar { display: none; }
+      .main-wrap { padding: 16px; }
+      .stats-bar { flex-wrap: wrap; }
+      .filter-bar { flex-direction: column; align-items: flex-start; }
+      .date-controls { flex-wrap: wrap; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════ HEADER ═══════════ -->
+<header>
+  <div class="logo">
+    <div class="logo-icon">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"/>
+      </svg>
+    </div>
+    <span class="logo-text">GTM</span><span class="logo-sub">&nbsp;RADAR</span>
+  </div>
+  <div class="search-wrap">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+    </svg>
+    <input type="text" id="searchInput" placeholder="Search posts or people…" />
+  </div>
+  <div class="header-right">
+    <button class="pill-btn active" id="last7Btn" onclick="toggleLast7()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+      </svg>
+      Last 7 days
+    </button>
+    <span id="postCount" style="font-size:13px;color:var(--muted)"></span>
+  </div>
+</header>
+
+<div class="app-body">
+
+<!-- ═══════════ SIDEBAR ═══════════ -->
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar-label">Function</div>
+  <!-- tabs injected by JS -->
+</nav>
+
+<div class="main-wrap">
+
+  <!-- Config banner (shown when no sheet URL is set) -->
+  <div class="config-banner" id="configBanner" style="display:none">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+    </svg>
+    <span>Running on mock data. To connect your sheet: publish it as CSV, then set <code>SHEET_CSV_URL</code> at the top of this file's script. <a href="#" onclick="document.getElementById('configBanner').style.display='none';return false">Dismiss</a></span>
+  </div>
+
+  <!-- ── Filter bar ── -->
+  <div class="filter-bar">
+    <div class="date-controls">
+      <span class="filter-label">From</span>
+      <input type="date" class="date-input" id="dateFrom" onchange="applyFilters()" />
+      <span class="filter-label">To</span>
+      <input type="date" class="date-input" id="dateTo" onchange="applyFilters()" />
+    </div>
+    <div class="sort-wrap" style="margin-left:auto">
+      <span class="filter-label">Sort</span>
+      <select class="sort-select" id="sortSelect" onchange="applyFilters()">
+        <option value="engagement">Top Engagement</option>
+        <option value="date">Most Recent</option>
+        <option value="likes">Most Likes</option>
+        <option value="comments">Most Comments</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- ── Stats ── -->
+  <div class="stats-bar" id="statsBar">
+    <div class="stat"><div class="stat-val" id="sTotalPosts">—</div><div class="stat-key">Posts</div></div>
+    <div class="stat"><div class="stat-val" id="sPeople">—</div><div class="stat-key">People</div></div>
+    <div class="stat"><div class="stat-val" id="sTotalLikes">—</div><div class="stat-key">Total Likes</div></div>
+    <div class="stat"><div class="stat-val" id="sAvgEng">—</div><div class="stat-key">Avg Engagement</div></div>
+  </div>
+
+  <!-- ── Feed ── -->
+  <div class="feed" id="feed"></div>
+  <div class="empty" id="emptyState" style="display:none">
+    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+    </svg>
+    <p>No posts match your current filters.</p>
+  </div>
+
+</div><!-- end main-wrap -->
+</div><!-- end app-body -->
+
+<script>
+/* ═══════════════════════════════════════════════════
+   CONFIG — paste your Google Sheet published CSV URL
+   File → Share → Publish to web → Sheet "posts" → CSV
+   ═══════════════════════════════════════════════════ */
+const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR-Oy6B5OGnEeiWMFfSmUTA9eA7QXe3jNqfEJ9a8HWd_0EIOr1qlaHCmnXD1XA_W--38UhmZ3CO0hYB/pub?gid=336027905&single=true&output=csv';
+
+/* ── Function definitions ── */
+const FUNCTIONS = [
+  { key: 'All',                 label: 'All',                  color: '#00d4ff' },
+  { key: 'ABM',                 label: 'ABM',                  color: '#a855f7' },
+  { key: 'Demand Generation',   label: 'Demand Gen',           color: '#3b82f6' },
+  { key: 'SEO',                 label: 'SEO',                  color: '#00ff88' },
+  { key: 'Performance Marketing', label: 'Performance',        color: '#f59e0b' },
+  { key: 'CRO',                 label: 'CRO',                  color: '#ff4d6d' },
+  { key: 'Field Marketing',     label: 'Field',                color: '#00d4ff' },
+  { key: 'Community Marketing', label: 'Community',            color: '#ec4899' },
+  { key: 'Product Marketing',   label: 'Product Mkt',          color: '#f97316' },
+];
+
+function fnColor(fn) {
+  const f = FUNCTIONS.find(f => f.key === fn);
+  return f ? f.color : '#64748b';
+}
+
+/* ── Avatar colours (deterministic by name) ── */
+const AVATAR_COLORS = ['#00d4ff','#a855f7','#00ff88','#f59e0b','#ff4d6d','#3b82f6','#ec4899','#f97316','#22d3ee'];
+function avatarColor(name) {
+  let h = 0;
+  for (let c of name) h = (h * 31 + c.charCodeAt(0)) & 0xffffffff;
+  return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
+}
+function initials(name) {
+  return name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+}
+
+/* ── Date helpers ── */
+function daysBetween(d1, d2) {
+  return Math.round((d2 - d1) / (1000 * 60 * 60 * 24));
+}
+function fmtDate(dateStr) {
+  const d = new Date(dateStr);
+  const diff = daysBetween(d, new Date());
+  if (diff === 0) return 'Today';
+  if (diff === 1) return 'Yesterday';
+  if (diff < 7)  return `${diff} days ago`;
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: diff > 300 ? 'numeric' : undefined });
+}
+function toISO(dateStr) {
+  // handles both YYYY-MM-DD and MM/DD/YYYY
+  if (!dateStr) return '';
+  if (dateStr.includes('-')) return dateStr;
+  const [m, d, y] = dateStr.split('/');
+  return `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
+}
+function fmtNum(n) {
+  n = parseInt(n) || 0;
+  if (n >= 1000) return (n / 1000).toFixed(1) + 'k';
+  return n.toString();
+}
+
+/* ══════════════════════════════════════════
+   MOCK DATA  — mirrors the Google Sheet schema
+   Columns: post_id, person_name, linkedin_username,
+            function, company, post_content,
+            post_date, likes, comments, shares, post_url
+   ══════════════════════════════════════════ */
+const today = new Date();
+function daysAgo(n) {
+  const d = new Date(today);
+  d.setDate(d.getDate() - n);
+  return d.toISOString().split('T')[0];
+}
+
+const MOCK_POSTS = [
+  {
+    post_id: '1', person_name: 'Chris Walker', linkedin_username: 'chriswalker', function: 'Demand Generation', company: 'Refine Labs',
+    post_content: `Stop asking "how did you hear about us?" and start looking at dark social.\n\nBuyers have 3–7 touchpoints before they convert — and most of them are invisible to your attribution model. Podcasts, Slack communities, word of mouth, LinkedIn DMs.\n\nIf you're optimizing only what you can measure, you're optimizing for a fraction of reality. The best demand gen isn't captured in UTMs.`,
+    post_date: daysAgo(1), likes: 4200, comments: 318, shares: 890, post_url: 'https://linkedin.com'
+  },
+  {
+    post_id: '2', person_name: 'Sangram Vajre', linkedin_username: 'sangramvajre', function: 'ABM', company: 'GTM Partners',
+    post_content: `ABM is not a technology. It's a strategy.\n\nToo many companies buy an ABM platform before they've aligned sales and marketing on who their ideal accounts actually are. The platform can't save you from that misalignment.\n\nStart with the list. Align on the list. Then automate the list.`,
+    post_date: daysAgo(2), likes: 3100, comments: 247, shares: 540, post_url: 'https://linkedin.com'
+  },
+  {
+    post_id: '3', person_name: 'Rand Fishkin', linkedin_username: 'randfishkin', function: 'SEO', company: 'SparkToro',
+    post_content: `Google's AI Overviews are eating clicks — and the brands that built their entire traffic moat on organic search are now scared.\n\nHere's the uncomfortable truth: SEO was always a rented channel. The brands winning long-term are building audience, not just rankings. Email, community, social — own the relationship.`,
+    post_date: daysAgo(2), likes: 5800, comments: 492, shares: 1200, post_url: 'https://linkedin.com'
+  },
+  {
+    post_id: '4', person_name: 'Anthony Pierri', linkedin_username: 'anthonypierri', function: 'Product Marketing', company: 'FletchPMM',
+    post_content: `Your homepage is talking to the wrong person.\n\nMost SaaS homepages try to speak to everyone — so they resonate with no one. The fix? Pick your ICP, describe the exact problem they feel, and make your hero section a direct answer to that problem.\n\nIf 3 different ICPs read your homepage and all think "this is for me" — something is wrong.`,
+    post_date: daysAgo(3), likes: 2900, comments: 205, shares: 670, post_url: 'https://linkedin.com'
+  },
+  {
+    post_id: '5', person_name: 'Peep Laja', linkedin_username: 'peeplaja', function: 'CRO', company: 'Wynter',
+    post_content: `Message-market fit is underrated.\n\nYou can have product-market fit and still struggle to convert — because you haven't found the words your buyers use. Testing landing pages is really testing messaging. Run the tests. Survey your buyers. Read their exact language back to them.\n\nConversion is a messaging problem 80% of the time.`,
+    post_date: daysAgo(3), likes: 3400, comments: 288, shares: 720, post_url: 'https://linkedin.com'
+  },
+  {
+    post_id: '6', person_name: 'Ashley Faus', linkedin_username: 'ashleyfaus', function: 'Community Marketing', company: 'Atlassian',
+    post_content: `Community isn't a growth hack. It's a long game.\n\nCompanies that build community for acquisition end up building a ghost town. The ones that build for genuine value — shared learning, peer connection, belonging — those communities compound over years.\n\nWhat are you giving before asking?`,
+    post_date: daysAgo(4), likes: 1800, comments: 176, shares: 340, post_url: 'https://linkedin.com'
+  },
+  {
+    post_id: '7', person_name: 'Gaetano DiNardi', linkedin_username: 'gaetanodinardi', function: 'Performance Marketing', company: 'Aura',
+    post_content: `Everyone's talking about AI in paid media. Here's what actually matters:\n\n1. Your creative diversity → still wins\n2. Your landing page → still the bottleneck\n3. Your audience signals → smarter than ever with first-party data\n\nAI optimizes within the constraints you set. Bad constraints = bad results regardless of how smart the algorithm is.`,
+    post_date: daysAgo(4), likes: 2600, comments: 198, shares: 510, post_url: 'https://linkedin.com'
+  },
+  {
+    post_id: '8', person_name: 'Julia Nimchinski', linkedin_username: 'julianimchinski', function: 'Field Marketing', company: 'HYPCCCYCL',
+    post_content: `Field marketing's biggest untapped channel in 2024: co-sell events with your tech partners.\n\nInstead of running your own small roadshow to 40 people — partner with 3 complementary vendors, split the cost, and 4x the audience. Your buyers want to see the full stack in action, not just you.\n\nThe days of the solo vendor event are numbered.`,
+    post_date: daysAgo(5), likes: 1500, comments: 142, shares: 280, post_url: 'https://linkedin.com'
+  },
+  {
+    post_id: '9', person_name: 'Chris Walker', linkedin_username: 'chriswalker', function: 'Demand Generation', company: 'Refine Labs',
+    post_content: `The MQL is dead. Long live the buying signal.\n\nMQLs were a shortcut — a proxy metric we used to hand off to sales. But they optimized for volume over quality. Today, the teams winning are tracking intent signals: pages visited, community participation, content consumed.\n\nScore behavior, not form fills.`,
+    post_date: daysAgo(6), likes: 3900, comments: 310, shares: 820, post_url: 'https://linkedin.com'
+  },
+  {
+    post_id: '10', person_name: 'Amanda Natividad', linkedin_username: 'amandanat', function: 'Product Marketing', company: 'SparkToro',
+    post_content: `"Create more content" is not a content strategy.\n\nThe brands that break through are the ones with a clear point of view — a perspective that makes some people nod and others frown. Consensus content is forgettable content.\n\nWhat do you actually believe that most in your space won't say out loud?`,
+    post_date: daysAgo(7), likes: 4600, comments: 385, shares: 950, post_url: 'https://linkedin.com'
+  },
+  {
+    post_id: '11', person_name: 'Kipp Bodnar', linkedin_username: 'kippbodnar', function: 'Demand Generation', company: 'HubSpot',
+    post_content: `AI is changing content marketing — but not in the way most people think.\n\nThe volume game is already lost. AI can produce infinite content. The new differentiator is: original research, lived experience, and genuine human perspective. Things AI can't fake.\n\nIf your content could have been written by a bot, it probably should have been. Raise the bar.`,
+    post_date: daysAgo(9), likes: 5100, comments: 410, shares: 1100, post_url: 'https://linkedin.com'
+  },
+  {
+    post_id: '12', person_name: 'Wes Bush', linkedin_username: 'wesbush', function: 'Product Marketing', company: 'ProductLed',
+    post_content: `Product-led growth doesn't mean "no sales."\n\nIt means letting your product do the selling before a human gets involved. The best PLG companies know exactly when to layer in sales — when the usage signals are right, when the account has expansion potential.\n\nPLG + sales-assist = the real model.`,
+    post_date: daysAgo(10), likes: 2100, comments: 168, shares: 440, post_url: 'https://linkedin.com'
+  },
+  {
+    post_id: '13', person_name: 'Sangram Vajre', linkedin_username: 'sangramvajre', function: 'ABM', company: 'GTM Partners',
+    post_content: `The #1 reason ABM fails: marketing owns the account list.\n\nABM is a joint GTM motion. Sales has to co-own the target accounts, contribute to the selection criteria, and be accountable for working those accounts. Marketing can't do ABM to sales. They have to do it with sales.`,
+    post_date: daysAgo(11), likes: 2800, comments: 232, shares: 590, post_url: 'https://linkedin.com'
+  },
+  {
+    post_id: '14', person_name: 'Peep Laja', linkedin_username: 'peeplaja', function: 'CRO', company: 'Wynter',
+    post_content: `Most A/B tests are run incorrectly.\n\nCommon mistakes:\n→ Ending the test early (peeking problem)\n→ Testing too many variables at once\n→ Ignoring statistical significance\n→ Not accounting for seasonality\n\nA/B testing is a discipline. Treat it like one or the results will mislead you.`,
+    post_date: daysAgo(14), likes: 3200, comments: 267, shares: 680, post_url: 'https://linkedin.com'
+  },
+  {
+    post_id: '15', person_name: 'Rand Fishkin', linkedin_username: 'randfishkin', function: 'SEO', company: 'SparkToro',
+    post_content: `Stop building backlinks. Start building brand.\n\nLinks are a proxy for brand authority. The brands that earn links don't chase them — they do things worth linking to: original research, bold takes, useful tools, community.\n\nWhen you focus on deserving the links, you start getting them.`,
+    post_date: daysAgo(15), likes: 4800, comments: 375, shares: 1050, post_url: 'https://linkedin.com'
+  },
+];
+
+/* ── App state ── */
+let allPosts = [];
+let activeFunc = 'All';
+let last7Active = true;
+
+/* ── Init ── */
+async function init() {
+  if (SHEET_CSV_URL) {
+    document.getElementById('configBanner').style.display = 'none';
+    try {
+      allPosts = await loadFromSheet(SHEET_CSV_URL);
+    } catch(e) {
+      console.warn('Sheet load failed, falling back to mock data:', e.message);
+      allPosts = MOCK_POSTS;
+      // Show a soft warning banner
+      const b = document.getElementById('configBanner');
+      b.style.display = 'flex';
+      b.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <span>Couldn't reach your sheet in this preview — showing mock data. <strong>It will work correctly when opened in Chrome or deployed to Vercel.</strong> <a href="#" onclick="document.getElementById('configBanner').style.display='none';return false">Dismiss</a></span>`;
+    }
+  } else {
+    allPosts = MOCK_POSTS;
+  }
+  buildFuncTabs();
+  applyFilters();
+}
+
+/* ── Load CSV from Google Sheet ── */
+async function loadFromSheet(url) {
+  // Try direct fetch first, then fall back to CORS proxy
+  let text;
+  try {
+    const res = await fetch(url, { cache: 'no-cache' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    text = await res.text();
+  } catch (e) {
+    // Try via CORS proxy
+    const proxy = 'https://corsproxy.io/?' + encodeURIComponent(url);
+    const res2 = await fetch(proxy, { cache: 'no-cache' });
+    if (!res2.ok) throw new Error(`Proxy HTTP ${res2.status}`);
+    text = await res2.text();
+  }
+  return parseCSV(text);
+}
+
+/* ── Parse CSV (handles quoted fields with commas/newlines) ── */
+function parseCSV(text) {
+  const rows = [];
+  let row = [], field = '', inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i], next = text[i + 1];
+    if (inQuotes) {
+      if (ch === '"' && next === '"') { field += '"'; i++; }
+      else if (ch === '"') inQuotes = false;
+      else field += ch;
+    } else {
+      if (ch === '"') inQuotes = true;
+      else if (ch === ',') { row.push(field.trim()); field = ''; }
+      else if (ch === '\n' || (ch === '\r' && next === '\n')) {
+        row.push(field.trim()); rows.push(row); row = []; field = '';
+        if (ch === '\r') i++;
+      } else field += ch;
+    }
+  }
+  if (field || row.length) { row.push(field.trim()); rows.push(row); }
+  const [header, ...data] = rows.filter(r => r.some(c => c));
+  return data.map(row => {
+    const obj = {};
+    header.forEach((h, i) => obj[h.trim()] = row[i] ?? '');
+    return obj;
+  });
+}
+
+/* ── Build function tabs (sidebar) ── */
+function buildFuncTabs() {
+  const presentFuncs = new Set(allPosts.map(p => p.function));
+  const sidebar = document.getElementById('sidebar');
+  // keep the label, rebuild everything after it
+  sidebar.innerHTML = '<div class="sidebar-label">Function</div>';
+  FUNCTIONS.forEach(f => {
+    if (f.key !== 'All' && !presentFuncs.has(f.key)) return;
+    const btn = document.createElement('button');
+    btn.className = 'tab' + (f.key === activeFunc ? ' active' : '');
+    const dot = document.createElement('span');
+    dot.className = 'tab-dot';
+    dot.style.background = f.color;
+    btn.appendChild(dot);
+    btn.appendChild(document.createTextNode(f.label));
+    btn.onclick = () => {
+      activeFunc = f.key;
+      document.querySelectorAll('.sidebar .tab').forEach(t => t.classList.remove('active'));
+      btn.classList.add('active');
+      applyFilters();
+    };
+    sidebar.appendChild(btn);
+  });
+}
+
+/* ── Main filter + render ── */
+function applyFilters() {
+  const search   = document.getElementById('searchInput').value.toLowerCase();
+  const dateFrom = document.getElementById('dateFrom').value;
+  const dateTo   = document.getElementById('dateTo').value;
+  const sort     = document.getElementById('sortSelect').value;
+
+  let posts = [...allPosts];
+
+  // Function filter
+  if (activeFunc !== 'All') posts = posts.filter(p => p.function === activeFunc);
+
+  // Last 7 days
+  if (last7Active) {
+    const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 7);
+    posts = posts.filter(p => new Date(toISO(p.post_date)) >= cutoff);
+  }
+
+  // Date range
+  if (dateFrom) posts = posts.filter(p => toISO(p.post_date) >= dateFrom);
+  if (dateTo)   posts = posts.filter(p => toISO(p.post_date) <= dateTo);
+
+  // Search
+  if (search) posts = posts.filter(p =>
+    p.person_name.toLowerCase().includes(search) ||
+    p.post_content.toLowerCase().includes(search) ||
+    p.company.toLowerCase().includes(search)
+  );
+
+  // Sort
+  posts.sort((a, b) => {
+    if (sort === 'date')     return new Date(toISO(b.post_date)) - new Date(toISO(a.post_date));
+    if (sort === 'likes')    return (parseInt(b.likes)||0) - (parseInt(a.likes)||0);
+    if (sort === 'comments') return (parseInt(b.comments)||0) - (parseInt(a.comments)||0);
+    // default: engagement = likes + comments + shares
+    const engB = (parseInt(b.likes)||0) + (parseInt(b.comments)||0) + (parseInt(b.shares)||0);
+    const engA = (parseInt(a.likes)||0) + (parseInt(a.comments)||0) + (parseInt(a.shares)||0);
+    return engB - engA;
+  });
+
+  updateStats(posts);
+  renderFeed(posts);
+  document.getElementById('postCount').textContent = posts.length + ' posts';
+}
+
+/* ── Stats ── */
+function updateStats(posts) {
+  const people = new Set(posts.map(p => p.person_name)).size;
+  const totalLikes = posts.reduce((s, p) => s + (parseInt(p.likes)||0), 0);
+  const avgEng = posts.length
+    ? Math.round(posts.reduce((s, p) => s + (parseInt(p.likes)||0) + (parseInt(p.comments)||0) + (parseInt(p.shares)||0), 0) / posts.length)
+    : 0;
+  document.getElementById('sTotalPosts').textContent = posts.length;
+  document.getElementById('sPeople').textContent = people;
+  document.getElementById('sTotalLikes').textContent = fmtNum(totalLikes);
+  document.getElementById('sAvgEng').textContent = fmtNum(avgEng);
+}
+
+/* ── Render feed ── */
+function renderFeed(posts) {
+  const feed = document.getElementById('feed');
+  const empty = document.getElementById('emptyState');
+  if (!posts.length) { feed.innerHTML = ''; empty.style.display = 'block'; return; }
+  empty.style.display = 'none';
+
+  feed.innerHTML = posts.map(p => {
+    const color = fnColor(p.function);
+    const aColor = avatarColor(p.person_name);
+    const eng = (parseInt(p.likes)||0) + (parseInt(p.comments)||0) + (parseInt(p.shares)||0);
+    const content = (p.post_content || '').replace(/\\n/g, '\n');
+    const truncLen = 280;
+    const needsTrunc = content.length > truncLen;
+    const shortContent = needsTrunc ? content.slice(0, truncLen) + '…' : content;
+    const id = 'post_' + p.post_id;
+
+    return `
+    <div class="card">
+      <div class="card-header">
+        <div class="avatar" style="background:${aColor}22;color:${aColor};border-color:${aColor}55;text-shadow:0 0 8px ${aColor}88">${initials(p.person_name)}</div>
+        <div class="person-info">
+          <div class="person-name">
+            ${escHtml(p.person_name)}
+            <span class="badge" style="color:${color};border-color:${color};box-shadow:0 0 6px ${color}33">${escHtml(p.function)}</span>
+          </div>
+          <div class="person-meta">${escHtml(p.company)} · ${fmtDate(toISO(p.post_date))}</div>
+        </div>
+        <div class="card-date">${toISO(p.post_date)}</div>
+      </div>
+      <div class="card-body" id="${id}">
+        ${escHtml(shortContent).replace(/\n/g, '<br>')}
+        ${needsTrunc ? `<span class="read-more" onclick="expandPost('${id}', ${JSON.stringify(content)})"> Read more</span>` : ''}
+      </div>
+      <div class="card-footer">
+        <div class="metric">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3H14z"/><path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>
+          <strong>${fmtNum(p.likes)}</strong>&nbsp;Likes
+        </div>
+        <div class="metric">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          <strong>${fmtNum(p.comments)}</strong>&nbsp;Comments
+        </div>
+        <div class="metric">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+          <strong>${fmtNum(p.shares)}</strong>&nbsp;Shares
+        </div>
+        <div class="metric" style="color:${color}">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
+          <strong style="color:${color}">${fmtNum(eng)}</strong>&nbsp;Total
+        </div>
+        ${p.post_url ? `<a class="card-link" href="${escHtml(p.post_url)}" target="_blank" rel="noopener">
+          View on LinkedIn
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        </a>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function expandPost(id, fullContent) {
+  document.getElementById(id).innerHTML = escHtml(fullContent).replace(/\n/g, '<br>');
+}
+
+function escHtml(str) {
+  return String(str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+/* ── Last 7 toggle ── */
+function toggleLast7() {
+  last7Active = !last7Active;
+  document.getElementById('last7Btn').classList.toggle('active', last7Active);
+  if (last7Active) {
+    document.getElementById('dateFrom').value = '';
+    document.getElementById('dateTo').value = '';
+  }
+  applyFilters();
+}
+
+/* ── Search debounce ── */
+let searchTimer;
+document.getElementById('searchInput').addEventListener('input', () => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(applyFilters, 250);
+});
+
+/* ── Date range clears last 7 ── */
+['dateFrom','dateTo'].forEach(id => {
+  document.getElementById(id).addEventListener('change', () => {
+    if (document.getElementById(id).value) {
+      last7Active = false;
+      document.getElementById('last7Btn').classList.remove('active');
+    }
+  });
+});
+
+/* ── Boot ── */
+init();
+</script>
+</body>
+</html>
